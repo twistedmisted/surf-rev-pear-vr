@@ -36,15 +36,11 @@ let rotationPointModel;         // A model for rotation point
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 
-let texturePoint;
-
 let parameters = {};
 
 const maxAngle = 2 * Math.PI;
 
 function initParameters() {
-    texturePoint = { x: 0, y: 0 };
-
     parameters = {
         a: 10,
         b: 4,
@@ -94,19 +90,6 @@ function Model(name) {
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verticesLength);
     }
-
-    this.PointBuffer = function(pointData) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pointData), gl.DYNAMIC_DRAW);
-    }
-
-    this.DrawPoint = function() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-
-        gl.drawArrays(gl.POINTS, 0, 1);
-    }
 }
 
 
@@ -123,10 +106,6 @@ function ShaderProgram(name, program) {
     this.iModelViewProjectionMatrix = -1;
     
     this.iTMU = -1;
-
-    this.iTranslatePoint = -1;
-    this.iTexturePoint = -1;
-    this.iAngleRad = -1;
     
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -161,18 +140,8 @@ function draw() {
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection);
 
     gl.uniform1i(shProgram.iTMU, 0);
-
-    gl.uniform2fv(shProgram.iTexturePoint, [texturePoint.x, texturePoint.y]);
-    gl.uniform1f(shProgram.iAngleRad, deg2rad(parameters.rotTexAngleDeg));
     
     surface.Draw();
-    
-    let translationForUserPoint = calcVertPoint(mapBack(texturePoint.x, parameters.a), mapBack(texturePoint.y, maxAngle));
-
-    gl.uniform3fv(shProgram.iTranslatePoint, translationForUserPoint.transformVector());
-    gl.uniform1f(shProgram.iAngleRad, -1.0);
-
-    rotationPointModel.DrawPoint();
 }
 
 /**
@@ -313,17 +282,10 @@ function initGL() {
     shProgram.iAttribTexture             = gl.getAttribLocation(prog, "texCoord");
     shProgram.iTMU                       = gl.getUniformLocation(prog, "tmu");
 
-    shProgram.iTranslatePoint            = gl.getUniformLocation(prog, 'pTranslate');
-    shProgram.iTexturePoint              = gl.getUniformLocation(prog, 'pTexture');
-    shProgram.iAngleRad                  = gl.getUniformLocation(prog, 'angleRad');
-
     surface = new Model('Surface of Revolution "Pear"');
     initParameters();
     LoadTexture();
     setBufferData(surface);
-
-    rotationPointModel = new Model('Rotation Point');
-    rotationPointModel.PointBuffer([0.0, 0.0, 0.0]);
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -392,26 +354,5 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
-    draw();
-}
-
-window.onkeydown = (key) => {
-    switch (key.keyCode) {
-        case 87:
-            texturePoint.x -= 0.01;
-            break;
-        case 83:
-            texturePoint.x += 0.01;
-            break;
-        case 65:
-            texturePoint.y += 0.01;
-            break;
-        case 68:
-            texturePoint.y -= 0.01;
-            break;
-    }
-    // Check if point is on the surface
-    texturePoint.x = Math.max(0.001, Math.min(texturePoint.x, 0.999))
-    texturePoint.y = Math.max(0.001, Math.min(texturePoint.y, 0.999))
     draw();
 }

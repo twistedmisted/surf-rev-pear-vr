@@ -6,54 +6,15 @@ attribute vec3 vVertex;
 attribute vec2 texCoord;
 uniform mat4 ModelViewProjectionMatrix;
 
-uniform vec3 pTranslate;
-uniform vec2 pTexture;
-uniform float angleRad;
+uniform bool isCamera;
 
 varying vec2 texInterp;
 
-mat4 translate(vec3 point) {
-  return mat4(
-    vec4(1.0, 0.0, 0.0, point.x),
-    vec4(0.0, 1.0, 0.0, point.y),
-    vec4(0.0, 0.0, 1.0, point.z),
-    vec4(0.0, 0.0, 0.0, 1.0)
-  );
-}
-
-mat4 rotate(float angleRad) {
-  float c = cos(angleRad);
-  float s = sin(angleRad);
-
-  return mat4(
-    vec4(c, s, 0.0, 0.0),
-    vec4(-s, c, 0.0, 0.0),
-    vec4(0.0, 0.0, 1.0, 0.0),
-    vec4(0.0, 0.0, 0.0, 1.0)
-  );
-}
-
 void main() {
-    // Check if this is a user point
-    if(angleRad == -1.0){
-        vec4 tPoint = vec4(vVertex, 1.0) * translate(pTranslate);
-        gl_Position = ModelViewProjectionMatrix * tPoint;
-    } else {
-        vec4 vertPos4 = ModelViewProjectionMatrix * vec4(vVertex, 1.0);
-        gl_Position = vertPos4;
-    }
-    
-    mat4 matTranslateToZero = translate(-vec3(pTexture, 0.0));
-    mat4 matTranslateBackToPoint = translate(vec3(pTexture, 0.0));
-    mat4 matRotate = rotate(angleRad);
+  vec4 vertPos4 = ModelViewProjectionMatrix * vec4(vVertex, 1.0);
+  gl_Position = vertPos4;
 
-    vec4 translatedToZero =  matTranslateToZero * vec4(texCoord, 0.0, 0.0);
-    vec4 rotatedByAngleRad = translatedToZero * matRotate;
-    vec4 translatedBackToPoint = rotatedByAngleRad * matTranslateBackToPoint;
-
-    texInterp = vec2(translatedBackToPoint.x, translatedBackToPoint.y);
-
-    gl_PointSize = 20.0;
+  texInterp = texCoord;
 }`;
 
 
@@ -70,10 +31,5 @@ uniform sampler2D tmu;
 uniform float angleRad;
 
 void main() {
-    // Check if this is user point
-    if(angleRad == -1.0){
-        gl_FragColor = vec4(0.0, 0.0 , 0.0 , 0.0);
-    } else {
-        gl_FragColor = texture2D(tmu, texInterp);
-    }
+    gl_FragColor = texture2D(tmu, texInterp);
 }`;
