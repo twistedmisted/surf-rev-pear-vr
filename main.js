@@ -2,6 +2,7 @@
 
 let gl;                         // The webgl context.
 let surface;                    // A surface model
+let stereoCam;                  // Object holding stereo camera calculation parameters
 let rotationPointModel;         // A model for rotation point
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
@@ -12,10 +13,10 @@ const maxAngle = 2 * Math.PI;
 
 function initParameters() {
     parameters = {
-        a: 5,
-        b: 2,
-        zStep: 0.1,
-        angleStep: 10,
+        a: 1,
+        b: 0.5,
+        zStep: 0.01,
+        angleStep: 100,
         nearClippingDistance: 8,
         farClippingDistance: 20000,
         eyeSeparation: 1,
@@ -38,7 +39,7 @@ const RZ = (z) => (z * Math.sqrt(z * (parameters.a - z))) / parameters.b
 
 /* Draws a 'Surface of Revolution "Pear"' */
 function draw() { 
-    gl.clearColor(0,0,0,1);
+    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
     /* Set the values of the projection transformation */
@@ -47,21 +48,42 @@ function draw() {
     /* Get the view matrix from the SimpleRotator object.*/
     let modelView = spaceball.getViewMatrix();
 
-    let rotateToPointZero = m4.axisRotation([0.707,0.707,0], 0.7);
-    let translateToPointZero = m4.translation(0,0,-10);
+    let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0.0);
+    let translateToPointZero = m4.translation(0, 0, -20);
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView);
     let matAccum1 = m4.multiply(translateToPointZero, matAccum0);
-       
-    /* Multiply the projection matrix times the modelview matrix to give the
-       combined transformation matrix, and send that to the shader program. */
-    let modelViewProjection = m4.multiply(projection, matAccum1);
+    let matAccum2 = m4.multiply(rotateToPointZero, m4.identity());
+    let matAccum3 = m4.multiply(translateToPointZero, matAccum2);
+    let modelViewProjection = m4.multiply(projection, matAccum3);
 
-    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection);
+    let matrLeftFrustum = stereoCam.applyLeftFrustum();
+    let matrRightFrustum = stereoCam.applyRightFrustum();
+
+    let translateLeftEye = m4.translation(-stereoCam.mEyeSeparation / 2, 0, 0);
+    let translateRightEye = m4.translation(stereoCam.mEyeSeparation / 2, 0, 0);
 
     gl.uniform1i(shProgram.iTMU, 0);
-    
+
+    gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(modelViewProjection, translateLeftEye));
+    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, m4.multiply(matrLeftFrustum, matAccum1));
+
+    // First pass for left eye, drawing to red component only
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.colorMask(true, false, false, false); // setup only red component
+
     surface.Draw();
+
+    // Second pass for left eye, drawing to blue+green components only
+    gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(modelViewProjection, translateRightEye));
+    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, m4.multiply(matrRightFrustum, matAccum1));
+
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.colorMask(false, true, true, false); // setup only blue+green components
+
+    surface.Draw();
+
+    gl.colorMask(true, true, true, true); // reset all RGB components
 }
 
 /**
@@ -97,6 +119,7 @@ function setNewParameters() {
  * Updates buffer data and draws a surface.
  */
 function updateDataAndDraw() {
+    stereoCam = new StereoCamera(parameters.convergence, parameters.eyeSeparation, 850 / 850, parameters.FOV, parameters.nearClippingDistance, parameters.farClippingDistance);
     surface.BufferData(CreateSurfaceData());
     draw();
 }
@@ -186,7 +209,8 @@ function initGL() {
     shProgram.Use();
 
     shProgram.iAttribVertex              = gl.getAttribLocation(prog, "vVertex");
-    shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
+    shProgram.iModelViewMatrix           = gl.getUniformLocation(prog, "ModelViewMatrix");
+    shProgram.iProjectionMatrix          = gl.getUniformLocation(prog, "ProjectionMatrix");
     
     shProgram.iAttribTexture             = gl.getAttribLocation(prog, "texCoord");
     shProgram.iTMU                       = gl.getUniformLocation(prog, "tmu");
@@ -195,6 +219,8 @@ function initGL() {
     initParameters();
     LoadTexture();
     setBufferData(surface);
+
+    stereoCam = new StereoCamera(parameters.convergence, parameters.eyeSeparation, 850 / 850, parameters.FOV, parameters.nearClippingDistance, parameters.farClippingDistance);
 
     gl.enable(gl.DEPTH_TEST);
 }

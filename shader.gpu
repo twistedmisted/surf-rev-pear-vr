@@ -4,17 +4,17 @@
 const vertexShaderSource = `
 attribute vec3 vVertex;
 attribute vec2 texCoord;
-uniform mat4 ModelViewProjectionMatrix;
+uniform mat4 ModelViewMatrix, ProjectionMatrix;
 
 uniform bool isCamera;
 
 varying vec2 texInterp;
 
 void main() {
-  vec4 vertPos4 = ModelViewProjectionMatrix * vec4(vVertex, 1.0);
-  gl_Position = vertPos4;
+   vec4 vertPos4 = ModelViewMatrix * vec4(vVertex, 1.0);
+   gl_Position = ProjectionMatrix*vertPos4;
 
-  texInterp = texCoord;
+   texInterp = texCoord;
 }`;
 
 
@@ -31,5 +31,5 @@ uniform sampler2D tmu;
 uniform float angleRad;
 
 void main() {
-    gl_FragColor = texture2D(tmu, texInterp);
+   gl_FragColor = texture2D(tmu, texInterp);
 }`;
