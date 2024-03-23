@@ -213,7 +213,7 @@ function LoadSurfaceTexture() {
 
     var image = new Image();
     image.crossOrigin = 'anonymous';
-    image.src = "https://raw.githubusercontent.com/twistedmisted/surf-rev-pear/CGW/texture/water.png";
+    image.src = "https://raw.githubusercontent.com/twistedmisted/surf-rev-pear-vr/PA1/texture/tree_bark_0.jpg";
     image.onload = () => {
         gl.bindTexture(gl.TEXTURE_2D, surfTexture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
