@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <link rel="stylesheet" type="text/css" href="styles.css">
+<title>PA#2</title>
+
+<script src="./Utils/trackball-rotator.js"></script>
+<script src="./Utils/m4.js"></script>
+<script src="./shader.gpu"></script>
+<script src="./main.js"></script>
+
+</head>
+<body onload="init()">
+
+    <div id="text-container">
+        <h2>A "Surface of Revolution 'Pear'" with "Trackball" Mouse Rotation</h2>
+        <p id="message">Drag your mouse on the surface to rotate it.<br>
+        (On a touch screen, you can use your finger.)</p>
+    </div>
+
+<div class="content">
+<div id="canvas-holder" class="canvas">
+   <canvas width="850" height="850" id="webglcanvas" style="background-color:red"></canvas>
+</div>
+
+<div class="parameters">
+    <div>
+        <label for="a">a:</label>
+        <input type="number" id="a" name="a" onchange="redraw()">
+    </div>
+    
+    <div>
+        <label for="b">b:</label>
+        <input type="number" id="b" name="b" onchange="redraw()">
+    </div>
+    
+    <div>
+        <label for="zStep">z step:</label>
+        <input type="number" id="zStep" name="zStep" onchange="redraw()">
+    </div>
+    
+    <div>
+        <label for="angleStep">Angle step (enter number to divide PI):</label>
+        <input type="number" id="angleStep" name="angleStep" onchange="redraw()">
+    </div>
+
+    <div>
+        <label for="rotTexAngleDeg">Texture rotation angle in degrees:</label>
+        <input type="number" id="rotTexAngleDeg" name="rotTexAngleDeg" min="-360" max="360" onchange="redraw()">
+    </div>
+    
+    <div class="button">
+        <button onclick="redraw()">Draw</button>
+    </div>
+
+    <div class="button">
+        <button onclick="drawDefault()">Draw Default Surface</button>
+    </div>
+</div>
+</div>
+
+</body></html>
