@@ -47,6 +47,27 @@
         <label for="angleStep">Angle step (enter number to divide PI):</label>
         <input type="number" id="angleStep" name="angleStep" onchange="redraw()">
     </div>
+
+    <div>
+        <label for ="nearClippingDistance">Near Clipping distance</label>
+        <input id="nearClippingDistance" type="range" min="1" max="9" step="0.01" value="8" onchange="redraw()">
+    </div>
+    <div>
+        <label for ="farClippingDistance">Far Clipping distance</label>
+        <input id="farClippingDistance" type="range" min="2000" max="20000" step="100" value="20000" onchange="redraw()">
+    </div>
+    <div>
+        <label for ="eyeSeparation">Eye separation</label>
+        <input id="eyeSeparation" type="range" min="0" max="5" step="0.1"  value="1" onchange="redraw()">
+    </div>
+    <div>
+        <label for ="FOV">Field of View</label>
+        <input id="FOV" type="range" min="0.1" max="15" step="0.01" value="4" onchange="redraw()">
+    </div>
+    <div>
+        <label for ="convergence">Convergence</label>
+        <input id="convergence" type="range" min="10" max="300" step="10" value="50" onchange="redraw()">
+    </div>
     
     <div class="button">
         <button onclick="redraw()">Draw</button>

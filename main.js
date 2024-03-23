@@ -12,14 +12,22 @@ const maxAngle = 2 * Math.PI;
 
 function initParameters() {
     parameters = {
-        a: 10,
-        b: 4,
+        a: 5,
+        b: 2,
         zStep: 0.1,
-        angleStep: 10
+        angleStep: 10,
+        nearClippingDistance: 8,
+        farClippingDistance: 20000,
+        eyeSeparation: 1,
+        FOV: Math.PI * 3,
+        convergence: 50
     };
 
     for (let key in parameters) {
-        document.getElementById(key).value = parameters[key];
+        let element = document.getElementById(key);
+        if (element) {
+            element.value = parameters[key];
+        }
     }
 }
 
@@ -77,11 +85,12 @@ function redraw() {
  * Gets parameters from UI and updates it on program config.
  */
 function setNewParameters() {
-    parameters.a = getValueByElementId('a');
-    parameters.b = getValueByElementId('b');
-    parameters.zStep = getValueByElementId('zStep');
-    parameters.angleStep = getValueByElementId('angleStep');
-    parameters.rotTexAngleDeg = getValueByElementId('rotTexAngleDeg');
+    for (let key in parameters) {
+        let element = document.getElementById(key);
+        if (element) {
+            parameters[key] = parseFloat(element.value);
+        }   
+    }
 }
 
 /**
@@ -90,18 +99,6 @@ function setNewParameters() {
 function updateDataAndDraw() {
     surface.BufferData(CreateSurfaceData());
     draw();
-}
-
-/**
- * Gets value from UI by its element id.
- */
-function getValueByElementId(elementId) {
-    const value = document.getElementById(elementId).value;
-    if (value) {
-        return parseFloat(value);
-    }
-    document.getElementById(elementId).value = parameters[elementId];
-    return parameters[elementId];
 }
 
 /**
