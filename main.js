@@ -1,35 +1,5 @@
 'use strict';
 
-class Point {
-    constructor(x, y, z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-
-    transformVector() {
-        return [this.x, this.y, this.z];
-    }
-}
-
-class UVPoint {
-    constructor(u, v) {
-        this.u = u;
-        this.v = v;
-    }
-
-    transformVector() {
-        return [this.u, this.v];
-    }
-}
-
-class SurfaceData {
-    constructor(vertexList, texturePoints) {
-        this.vertexList = vertexList;
-        this.texturePoints = texturePoints;
-    }
-}
-
 let gl;                         // The webgl context.
 let surface;                    // A surface model
 let rotationPointModel;         // A model for rotation point
@@ -45,8 +15,7 @@ function initParameters() {
         a: 10,
         b: 4,
         zStep: 0.1,
-        angleStep: 10,
-        rotTexAngleDeg: 0
+        angleStep: 10
     };
 
     for (let key in parameters) {
@@ -58,63 +27,6 @@ function initParameters() {
 const X = (rZ, angle) => rZ * Math.sin(angle);
 const Y = (rZ, angle) => rZ * Math.cos(angle);
 const RZ = (z) => (z * Math.sqrt(z * (parameters.a - z))) / parameters.b
-
-// Constructor
-function Model(name) {
-    this.name = name;
-    this.iVertexBuffer = gl.createBuffer();
-    this.iTextureBuffer = gl.createBuffer();
-    this.verticesLength = 0;
-    this.textureLength = 0;
-    
-    this.BufferData = function(surfData) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(surfData.vertexList), gl.STREAM_DRAW);
-
-        this.verticesLength = surfData.vertexList.length / 3;
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(surfData.texturePoints), gl.STREAM_DRAW);
-
-        this.textureLength = surfData.texturePoints.length / 2;
-    }
-
-    this.Draw = function() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-   
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribTexture, 2, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribTexture);
-
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verticesLength);
-    }
-}
-
-
-// Constructor
-function ShaderProgram(name, program) {
-
-    this.name = name;
-    this.prog = program;
-
-    // Location of the attribute variable in the shader program.
-    this.iAttribVertex = -1;
-    this.iAttribTexture = -1;
-    // Location of the uniform matrix representing the combined transformation.
-    this.iModelViewProjectionMatrix = -1;
-    
-    this.iTMU = -1;
-    
-    this.Use = function() {
-        gl.useProgram(this.prog);
-    }
-}
-
-function deg2rad(angle) {
-    return angle * Math.PI / 180;
-}
 
 /* Draws a 'Surface of Revolution "Pear"' */
 function draw() { 
