@@ -83,7 +83,7 @@ function draw() {
 
     surface.Draw();
 
-    // Second pass for left eye, drawing to blue+green components only
+    // Second pass for right eye, drawing to blue+green components only
     gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(modelViewProjection, translateRightEye));
     gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, m4.multiply(matrRightFrustum, matAccum1));
 
