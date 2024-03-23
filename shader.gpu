@@ -11,10 +11,15 @@ uniform bool isCamera;
 varying vec2 texInterp;
 
 void main() {
-   vec4 vertPos4 = ModelViewMatrix * vec4(vVertex, 1.0);
-   gl_Position = ProjectionMatrix*vertPos4;
+  if (isCamera) {
+    vec4 vertPos4 = ProjectionMatrix * vec4(vVertex, 1.0);
+    gl_Position = vertPos4;
+  } else {
+    vec4 vertPos4 = ModelViewMatrix * vec4(vVertex, 1.0);
+    gl_Position = ProjectionMatrix*vertPos4;
+  }
 
-   texInterp = texCoord;
+  texInterp = texCoord;
 }`;
 
 
@@ -31,5 +36,5 @@ uniform sampler2D tmu;
 uniform float angleRad;
 
 void main() {
-   gl_FragColor = texture2D(tmu, texInterp);
+    gl_FragColor = texture2D(tmu, texInterp);
 }`;
