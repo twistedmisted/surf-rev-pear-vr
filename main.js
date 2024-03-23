@@ -1,60 +1,40 @@
 'use strict';
 
-class Point {
-    constructor(x, y, z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-
-    transformVector() {
-        return [this.x, this.y, this.z];
-    }
-}
-
-class UVPoint {
-    constructor(u, v) {
-        this.u = u;
-        this.v = v;
-    }
-
-    transformVector() {
-        return [this.u, this.v];
-    }
-}
-
-class SurfaceData {
-    constructor(vertexList, texturePoints) {
-        this.vertexList = vertexList;
-        this.texturePoints = texturePoints;
-    }
-}
-
 let gl;                         // The webgl context.
 let surface;                    // A surface model
+let webCamSurface;              // A surface for web camera with zero parallax
+let stereoCam;                  // Object holding stereo camera calculation parameters
 let rotationPointModel;         // A model for rotation point
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 
-let texturePoint;
+let surfTexture;                // Holds texture for main sufrace
+let webCamTexture;              // Holds texture from web cam
+
+let video;                      // Holds video from webcam for texture
 
 let parameters = {};
 
 const maxAngle = 2 * Math.PI;
 
 function initParameters() {
-    texturePoint = { x: 0, y: 0 };
-
     parameters = {
-        a: 10,
-        b: 4,
-        zStep: 0.1,
-        angleStep: 10,
-        rotTexAngleDeg: 0
+        a: 1,
+        b: 0.5,
+        zStep: 0.01,
+        angleStep: 100,
+        nearClippingDistance: 8,
+        farClippingDistance: 20000,
+        eyeSeparation: 1,
+        FOV: Math.PI * 3,
+        convergence: 50
     };
 
     for (let key in parameters) {
-        document.getElementById(key).value = parameters[key];
+        let element = document.getElementById(key);
+        if (element) {
+            element.value = parameters[key];
+        }
     }
 }
 
@@ -63,83 +43,9 @@ const X = (rZ, angle) => rZ * Math.sin(angle);
 const Y = (rZ, angle) => rZ * Math.cos(angle);
 const RZ = (z) => (z * Math.sqrt(z * (parameters.a - z))) / parameters.b
 
-// Constructor
-function Model(name) {
-    this.name = name;
-    this.iVertexBuffer = gl.createBuffer();
-    this.iTextureBuffer = gl.createBuffer();
-    this.verticesLength = 0;
-    this.textureLength = 0;
-    
-    this.BufferData = function(surfData) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(surfData.vertexList), gl.STREAM_DRAW);
-
-        this.verticesLength = surfData.vertexList.length / 3;
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(surfData.texturePoints), gl.STREAM_DRAW);
-
-        this.textureLength = surfData.texturePoints.length / 2;
-    }
-
-    this.Draw = function() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-   
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribTexture, 2, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribTexture);
-
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verticesLength);
-    }
-
-    this.PointBuffer = function(pointData) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pointData), gl.DYNAMIC_DRAW);
-    }
-
-    this.DrawPoint = function() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-
-        gl.drawArrays(gl.POINTS, 0, 1);
-    }
-}
-
-
-// Constructor
-function ShaderProgram(name, program) {
-
-    this.name = name;
-    this.prog = program;
-
-    // Location of the attribute variable in the shader program.
-    this.iAttribVertex = -1;
-    this.iAttribTexture = -1;
-    // Location of the uniform matrix representing the combined transformation.
-    this.iModelViewProjectionMatrix = -1;
-    
-    this.iTMU = -1;
-
-    this.iTranslatePoint = -1;
-    this.iTexturePoint = -1;
-    this.iAngleRad = -1;
-    
-    this.Use = function() {
-        gl.useProgram(this.prog);
-    }
-}
-
-function deg2rad(angle) {
-    return angle * Math.PI / 180;
-}
-
 /* Draws a 'Surface of Revolution "Pear"' */
 function draw() { 
-    gl.clearColor(0,0,0,1);
+    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
     /* Set the values of the projection transformation */
@@ -148,31 +54,57 @@ function draw() {
     /* Get the view matrix from the SimpleRotator object.*/
     let modelView = spaceball.getViewMatrix();
 
-    let rotateToPointZero = m4.axisRotation([0.707,0.707,0], 0.7);
-    let translateToPointZero = m4.translation(0,0,-10);
+    let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0.0);
+    let translateToPointZero = m4.translation(0, 0, -20);
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView);
     let matAccum1 = m4.multiply(translateToPointZero, matAccum0);
-       
-    /* Multiply the projection matrix times the modelview matrix to give the
-       combined transformation matrix, and send that to the shader program. */
-    let modelViewProjection = m4.multiply(projection, matAccum1);
+    let matAccum2 = m4.multiply(rotateToPointZero, m4.identity());
+    let matAccum3 = m4.multiply(translateToPointZero, matAccum2);
+    let modelViewProjection = m4.multiply(projection, matAccum3);
 
-    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection);
+    let matrLeftFrustum = stereoCam.applyLeftFrustum();
+    let matrRightFrustum = stereoCam.applyRightFrustum();
+
+    let translateLeftEye = m4.translation(-stereoCam.mEyeSeparation / 2, 0, 0);
+    let translateRightEye = m4.translation(stereoCam.mEyeSeparation / 2, 0, 0);
+
+    drawWebCamera(projection);
 
     gl.uniform1i(shProgram.iTMU, 0);
+    gl.bindTexture(gl.TEXTURE_2D, surfTexture);
 
-    gl.uniform2fv(shProgram.iTexturePoint, [texturePoint.x, texturePoint.y]);
-    gl.uniform1f(shProgram.iAngleRad, deg2rad(parameters.rotTexAngleDeg));
-    
+    gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(modelViewProjection, translateLeftEye));
+    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, m4.multiply(matrLeftFrustum, matAccum1));
+
+    // First pass for left eye, drawing to red component only
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.colorMask(true, false, false, false); // setup only red component
+
     surface.Draw();
-    
-    let translationForUserPoint = calcVertPoint(mapBack(texturePoint.x, parameters.a), mapBack(texturePoint.y, maxAngle));
 
-    gl.uniform3fv(shProgram.iTranslatePoint, translationForUserPoint.transformVector());
-    gl.uniform1f(shProgram.iAngleRad, -1.0);
+    // Second pass for left eye, drawing to blue+green components only
+    gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(modelViewProjection, translateRightEye));
+    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, m4.multiply(matrRightFrustum, matAccum1));
 
-    rotationPointModel.DrawPoint();
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.colorMask(false, true, true, false); // setup only blue+green components
+
+    surface.Draw();
+
+    gl.colorMask(true, true, true, true); // reset all RGB components
+}
+
+/**
+ * Draws a surface with webcam video texture
+ */
+function drawWebCamera(projection) {
+    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, projection);
+    gl.uniform1i(shProgram.isCamera, true);
+
+    gl.bindTexture(gl.TEXTURE_2D, webCamTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    webCamSurface.DrawTriangles();
 }
 
 /**
@@ -196,31 +128,21 @@ function redraw() {
  * Gets parameters from UI and updates it on program config.
  */
 function setNewParameters() {
-    parameters.a = getValueByElementId('a');
-    parameters.b = getValueByElementId('b');
-    parameters.zStep = getValueByElementId('zStep');
-    parameters.angleStep = getValueByElementId('angleStep');
-    parameters.rotTexAngleDeg = getValueByElementId('rotTexAngleDeg');
+    for (let key in parameters) {
+        let element = document.getElementById(key);
+        if (element) {
+            parameters[key] = parseFloat(element.value);
+        }   
+    }
 }
 
 /**
  * Updates buffer data and draws a surface.
  */
 function updateDataAndDraw() {
+    stereoCam = new StereoCamera(parameters.convergence, parameters.eyeSeparation, 850 / 850, parameters.FOV, parameters.nearClippingDistance, parameters.farClippingDistance);
     surface.BufferData(CreateSurfaceData());
     draw();
-}
-
-/**
- * Gets value from UI by its element id.
- */
-function getValueByElementId(elementId) {
-    const value = document.getElementById(elementId).value;
-    if (value) {
-        return parseFloat(value);
-    }
-    document.getElementById(elementId).value = parameters[elementId];
-    return parameters[elementId];
 }
 
 /**
@@ -281,9 +203,9 @@ function mapBack(val, max) {
     return val * max;
 }
 
-function LoadTexture() {
-    var texture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+function LoadSurfaceTexture() {
+    surfTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, surfTexture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -291,13 +213,23 @@ function LoadTexture() {
 
     var image = new Image();
     image.crossOrigin = 'anonymous';
-    image.src = "https://raw.githubusercontent.com/twistedmisted/surf-rev-pear/CGW/texture/water.png";
+    image.src = "https://raw.githubusercontent.com/twistedmisted/surf-rev-pear-vr/PA1/texture/tree_bark_0.jpg";
     image.onload = () => {
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.bindTexture(gl.TEXTURE_2D, surfTexture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 
         draw();
     }
+}
+
+function LoadWebCamTexture() {
+    webCamTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, webCamTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
 }
 
 /* Initialize the WebGL context. Called from init() */
@@ -308,22 +240,36 @@ function initGL() {
     shProgram.Use();
 
     shProgram.iAttribVertex              = gl.getAttribLocation(prog, "vVertex");
-    shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
+    shProgram.iModelViewMatrix           = gl.getUniformLocation(prog, "ModelViewMatrix");
+    shProgram.iProjectionMatrix          = gl.getUniformLocation(prog, "ProjectionMatrix");
     
     shProgram.iAttribTexture             = gl.getAttribLocation(prog, "texCoord");
     shProgram.iTMU                       = gl.getUniformLocation(prog, "tmu");
 
-    shProgram.iTranslatePoint            = gl.getUniformLocation(prog, 'pTranslate');
-    shProgram.iTexturePoint              = gl.getUniformLocation(prog, 'pTexture');
-    shProgram.iAngleRad                  = gl.getUniformLocation(prog, 'angleRad');
+    shProgram.isCamera                   = gl.getUniformLocation(prog, "isCamera");
 
     surface = new Model('Surface of Revolution "Pear"');
     initParameters();
-    LoadTexture();
+    LoadSurfaceTexture();
     setBufferData(surface);
 
-    rotationPointModel = new Model('Rotation Point');
-    rotationPointModel.PointBuffer([0.0, 0.0, 0.0]);
+    // Stereo camera for negative parallax
+    stereoCam = new StereoCamera(parameters.convergence, parameters.eyeSeparation, 850 / 850, parameters.FOV, parameters.nearClippingDistance, parameters.farClippingDistance);
+
+    // A model for web cam video with negative parallax on background
+    webCamSurface = new Model("Web Camera Surface");
+    // Loading triangles data to draw surface on full canvas 
+    webCamSurface.BufferData(new SurfaceData(
+        [
+            -20.0, 20.0, 0.0, 
+            -20.0, -20.0, 0.0, 
+            20.0, -20.0, 0.0,
+            20.0, -20.0, 0.0, 
+            20.0, 20.0, 0.0,
+            -20.0, 20.0, 0.0, 
+        ],
+        [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1]
+    ));
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -372,6 +318,7 @@ function init() {
     try {
         canvas = document.getElementById("webglcanvas");
         gl = canvas.getContext("webgl");
+        setupWebCam();
         if ( ! gl ) {
             throw "Browser does not support WebGL";
         }
@@ -392,26 +339,27 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
-    draw();
+    updateSurfaces();
 }
 
-window.onkeydown = (key) => {
-    switch (key.keyCode) {
-        case 87:
-            texturePoint.x -= 0.01;
-            break;
-        case 83:
-            texturePoint.x += 0.01;
-            break;
-        case 65:
-            texturePoint.y += 0.01;
-            break;
-        case 68:
-            texturePoint.y -= 0.01;
-            break;
-    }
-    // Check if point is on the surface
-    texturePoint.x = Math.max(0.001, Math.min(texturePoint.x, 0.999))
-    texturePoint.y = Math.max(0.001, Math.min(texturePoint.y, 0.999))
+function setupWebCam() {
+    video = document.createElement('video');
+    video.setAttribute('autoplay', true);
+    window.vid = video;
+
+    // Looking for available web camera
+    let constraints = {video: true, audio: false};
+    navigator.getUserMedia(constraints, function (stream) {
+        video.srcObject = stream;
+    }, function (e) {
+        console.error('Can\'t find a Web camera', e);
+    });
+
+    // Loading video from web cam as texture
+    LoadWebCamTexture();
+}
+
+function updateSurfaces() {
     draw();
+    window.requestAnimationFrame(updateSurfaces)
 }

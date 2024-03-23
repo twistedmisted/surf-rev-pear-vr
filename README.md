@@ -1,10 +1,16 @@
 # WebGL
 
-Project that accompanies VGGI credit module.
+Project that accompanies VR credit module.
 
-Visit vggi-kpi.blogspot.com for more information
+Visit vr-kpi.blogspot.com for more information
 
 ## Surface of Revolution "Pear"
 
-Example of mapping texture and it rotation for CGW
-![gif-animation](Example_of_CGW.gif)
+This PA is based on previous module repository [CGW](https://github.com/twistedmisted/surf-rev-pear/tree/CGW) branch.
+
+Example of surface with negative parallax and background surface (with webcam video texture) with zero parallax
+![gif-animation](PA_1_Example.gif)
+
+
+### Previous credit module VGGI repository: 
+[Link](https://github.com/twistedmisted/surf-rev-pear)
