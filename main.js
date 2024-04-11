@@ -2,16 +2,12 @@
 
 let gl;                         // The webgl context.
 let surface;                    // A surface model
-let webCamSurface;              // A surface for web camera with zero parallax
 let stereoCam;                  // Object holding stereo camera calculation parameters
 let rotationPointModel;         // A model for rotation point
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 
 let surfTexture;                // Holds texture for main sufrace
-let webCamTexture;              // Holds texture from web cam
-
-let video;                      // Holds video from webcam for texture
 
 let parameters = {};
 
@@ -69,8 +65,6 @@ function draw() {
     let translateLeftEye = m4.translation(-stereoCam.mEyeSeparation / 2, 0, 0);
     let translateRightEye = m4.translation(stereoCam.mEyeSeparation / 2, 0, 0);
 
-    drawWebCamera(projection);
-
     gl.uniform1i(shProgram.iTMU, 0);
     gl.bindTexture(gl.TEXTURE_2D, surfTexture);
 
@@ -93,18 +87,6 @@ function draw() {
     surface.Draw();
 
     gl.colorMask(true, true, true, true); // reset all RGB components
-}
-
-/**
- * Draws a surface with webcam video texture
- */
-function drawWebCamera(projection) {
-    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, projection);
-    gl.uniform1i(shProgram.isCamera, true);
-
-    gl.bindTexture(gl.TEXTURE_2D, webCamTexture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-    webCamSurface.DrawTriangles();
 }
 
 /**
@@ -222,16 +204,6 @@ function LoadSurfaceTexture() {
     }
 }
 
-function LoadWebCamTexture() {
-    webCamTexture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, webCamTexture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-}
-
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
     let prog = createProgram( gl, vertexShaderSource, fragmentShaderSource );
@@ -246,8 +218,6 @@ function initGL() {
     shProgram.iAttribTexture             = gl.getAttribLocation(prog, "texCoord");
     shProgram.iTMU                       = gl.getUniformLocation(prog, "tmu");
 
-    shProgram.isCamera                   = gl.getUniformLocation(prog, "isCamera");
-
     surface = new Model('Surface of Revolution "Pear"');
     initParameters();
     LoadSurfaceTexture();
@@ -255,21 +225,6 @@ function initGL() {
 
     // Stereo camera for negative parallax
     stereoCam = new StereoCamera(parameters.convergence, parameters.eyeSeparation, 850 / 850, parameters.FOV, parameters.nearClippingDistance, parameters.farClippingDistance);
-
-    // A model for web cam video with negative parallax on background
-    webCamSurface = new Model("Web Camera Surface");
-    // Loading triangles data to draw surface on full canvas 
-    webCamSurface.BufferData(new SurfaceData(
-        [
-            -20.0, 20.0, 0.0, 
-            -20.0, -20.0, 0.0, 
-            20.0, -20.0, 0.0,
-            20.0, -20.0, 0.0, 
-            20.0, 20.0, 0.0,
-            -20.0, 20.0, 0.0, 
-        ],
-        [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1]
-    ));
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -318,7 +273,6 @@ function init() {
     try {
         canvas = document.getElementById("webglcanvas");
         gl = canvas.getContext("webgl");
-        setupWebCam();
         if ( ! gl ) {
             throw "Browser does not support WebGL";
         }
@@ -340,23 +294,6 @@ function init() {
     spaceball = new TrackballRotator(canvas, draw, 0);
 
     updateSurfaces();
-}
-
-function setupWebCam() {
-    video = document.createElement('video');
-    video.setAttribute('autoplay', true);
-    window.vid = video;
-
-    // Looking for available web camera
-    let constraints = {video: true, audio: false};
-    navigator.getUserMedia(constraints, function (stream) {
-        video.srcObject = stream;
-    }, function (e) {
-        console.error('Can\'t find a Web camera', e);
-    });
-
-    // Loading video from web cam as texture
-    LoadWebCamTexture();
 }
 
 function updateSurfaces() {
