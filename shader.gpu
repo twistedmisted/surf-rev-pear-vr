@@ -5,11 +5,20 @@ const vertexShaderSource = `
 attribute vec3 vVertex;
 attribute vec2 texCoord;
 uniform mat4 ModelViewMatrix, ProjectionMatrix;
+
+uniform bool isCamera;
+
 varying vec2 texInterp;
 
 void main() {
-  vec4 vertPos4 = ModelViewMatrix * vec4(vVertex, 1.0);
-  gl_Position = ProjectionMatrix*vertPos4;
+  if (isCamera) {
+    vec4 vertPos4 = ProjectionMatrix * vec4(vVertex, 1.0);
+    gl_Position = vertPos4;
+  } else {
+    vec4 vertPos4 = ModelViewMatrix * vec4(vVertex, 1.0);
+    gl_Position = ProjectionMatrix*vertPos4;
+  }
+
   texInterp = texCoord;
 }`;
 
