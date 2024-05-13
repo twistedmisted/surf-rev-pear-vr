@@ -7,6 +7,13 @@ function Model(name) {
     
     this.BufferData = function(surfData) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(surfData), gl.STREAM_DRAW);
+
+        this.verticesLength = surfData.length / 3;
+    }
+
+    this.BufferDataWithTexture = function(surfData) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(surfData.vertexList), gl.STREAM_DRAW);
 
         this.verticesLength = surfData.vertexList.length / 3;
@@ -40,4 +47,13 @@ function Model(name) {
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verticesLength);
     }
+
+    this.DrawSphere = function () {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribVertex);
+
+        
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verticesLength);
+    };
 }
