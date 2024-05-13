@@ -18,10 +18,11 @@ let audioSource;                // Holds audio settings
 let audioPanner;                // An audio panner
 let audioFilter;                // An audio bandpass filter
 let defaultFrequency;           // A default frequency of sound filter
-let audioPosition;
+let audioPosition;              // Audio position in space
+let useFilter = true;          // Indicates if use filter for audio
 
 let sphere;                     // A sphere model to vizualize position of the sound in the space
-let sphereRotation;
+let sphereRotation;             // Sphere rotation point
 
 let parameters = {};
 
@@ -41,8 +42,7 @@ function initParameters() {
         eyeSeparation: 0.45,
         FOV: Math.PI * 3,
         convergence: 350,
-        audioPlay: false,
-        // useFilter: true
+        audioPlay: false
     };
 
     for (let key in parameters) {
@@ -153,6 +153,7 @@ function redraw() {
  */
 function resetAudio() {
     document.getElementById('play-audio-btn').textContent = 'Play';
+    audioContext.suspend();
     audioContext = undefined;
 }
 
@@ -403,31 +404,49 @@ function init() {
 
     window.addEventListener('devicemotion', (event) => {
         if(audioPanner) {
-            changeAudioPosition(event);
+            audioPosition.x += deg2rad(event.acceleration.x);
+            audioPosition.y += deg2rad(event.acceleration.y);
+            audioPosition.z += deg2rad(event.acceleration.z);
+
+            sphereRotation.x = 2 * Math.cos(audioPosition.y) * Math.cos(audioPosition.x);
+            sphereRotation.y = 2 * Math.sin(audioPosition.y);
+            sphereRotation.z = 2 * Math.cos(audioPosition.y) * Math.sin(audioPosition.z);
+
+            audioPanner.setPosition(sphereRotation.x, sphereRotation.y, sphereRotation.z);
+            audioPanner.setOrientation(0,0,0);
+
+            redraw();
         }
     })
 
     spaceball = new TrackballRotator(canvas, draw, 0);
-
+    
+    setupUseFilterEvent();
     updateSurfaces();
 }
 
-/**
- * Changes audio position due to event acceleration from Android
- */
-function changeAudioPosition(event) {
-    audioPosition.x += deg2rad(event.acceleration.x);
-    audioPosition.y += deg2rad(event.acceleration.y);
-    audioPosition.z += deg2rad(event.acceleration.z);
-
-    sphereRotation.x = 2 * Math.cos(audioPosition.y) * Math.cos(audioPosition.x);
-    sphereRotation.y = 2 * Math.sin(audioPosition.y);
-    sphereRotation.z = 2 * Math.cos(audioPosition.y) * Math.sin(audioPosition.z);
-
-    audioPanner.setPosition(sphereRotation.x, sphereRotation.y, sphereRotation.z);
-    audioPanner.setOrientation(0,0,0);
-
-    redraw();
+function setupUseFilterEvent() {
+    const checkbox = document.getElementById('useFilter');
+    checkbox.addEventListener('change', (event) => {
+        if (event.target.checked) {
+            useFilter = true;
+            if (audioContext) {
+                audioSource.disconnect();
+                audioPanner.disconnect();
+                audioSource.connect(audioFilter);
+                audioFilter.connect(audioPanner);
+                audioFilter.connect(audioContext.destination);
+            }
+        } else {
+            useFilter = false;
+            if (audioContext) {
+                audioSource.disconnect();
+                audioPanner.disconnect();
+                audioSource.connect(audioPanner);
+                audioPanner.connect(audioContext.destination);
+            }
+        }
+    });
 }
 
 /**
@@ -470,6 +489,7 @@ function playMusic() {
             audioContext.resume();
         } else {
             createAudio();
+            audioSource.start(0);
         }
         document.getElementById('play-audio-btn').textContent = 'Stop';
     }
@@ -482,29 +502,28 @@ function playMusic() {
 function createAudio()
 {
     audioContext = new window.AudioContext();
+    audioSource = audioContext.createBufferSource();
     createBandpassFilter();
     createAudioPanner();
     const request = new XMLHttpRequest();
-    audioSource = audioContext.createBufferSource();
     request.open("GET", "https://raw.githubusercontent.com/twistedmisted/surf-rev-pear-vr/CGW/audio.mp3", true);
     request.responseType = "arraybuffer";
-
     request.onload = () => {
         const audioData = request.response;
-
         audioContext.decodeAudioData(audioData, (buffer) => {
-
                 audioSource.buffer = buffer;
-                audioSource.connect(audioFilter);
-                audioFilter.connect(audioPanner);
+                if (useFilter) {
+                    audioSource.connect(audioFilter);
+                    audioFilter.connect(audioPanner);
+                } else {
+                    audioSource.connect(audioPanner);
+                }
                 audioPanner.connect(audioContext.destination);
                 audioSource.loop = true;
             }, (err) => {alert(err)}
         );
     };
-
     request.send();
-    audioSource.start(0);
 }
 
 /**
@@ -514,9 +533,8 @@ function createBandpassFilter()
 {
     audioFilter = audioContext.createBiquadFilter();
     audioFilter.type = "bandpass";
-    defaultFrequency =  audioFilter.frequency.value;
     audioFilter.frequency.value = 1000;
-    audioFilter.gain.value = 10;
+    audioFilter.Q.value = 1;
 }
 
 /**
@@ -528,7 +546,7 @@ function createAudioPanner()
     audioPanner.panningModel = "HRTF";
     audioPanner.distanceModel = "inverse";
     audioPanner.refDistance = 1;
-    audioPanner.maxDistance = 2000;
+    audioPanner.maxDistance = 1000;
     audioPanner.rolloffFactor = 1;
     audioPanner.coneInnerAngle = 360;
     audioPanner.coneOuterAngle = 0;
