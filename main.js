@@ -13,21 +13,36 @@ let webCamTexture;              // Holds texture from web cam
 
 let video;                      // Holds video from webcam for texture
 
+let audioContext;               // An audio context
+let audioSource;                // Holds audio settings
+let audioPanner;                // An audio panner
+let audioFilter;                // An audio bandpass filter
+let defaultFrequency;           // A default frequency of sound filter
+let audioPosition;
+
+let sphere;                     // A sphere model to vizualize position of the sound in the space
+let sphereRotation;
+
 let parameters = {};
 
 const maxAngle = 2 * Math.PI;
 
 function initParameters() {
+    sphereRotation = new Point(0, 0, 0);
+    audioPosition = new Point(1, 0, 0);
+
     parameters = {
-        a: 1,
-        b: 0.5,
-        zStep: 0.01,
+        a: 15,
+        b: 8,
+        zStep: 1,
         angleStep: 100,
         nearClippingDistance: 8,
         farClippingDistance: 20000,
-        eyeSeparation: 1,
+        eyeSeparation: 0.45,
         FOV: Math.PI * 3,
-        convergence: 50
+        convergence: 350,
+        audioPlay: false,
+        // useFilter: true
     };
 
     for (let key in parameters) {
@@ -82,6 +97,10 @@ function draw() {
     gl.colorMask(true, false, false, false); // setup only red component
 
     surface.Draw();
+    gl.uniform4fv(shProgram.iColor, [1.0, 1.0, 0.0, 1]);
+    gl.uniform1i(shProgram.isSphere, true);
+    sphere.DrawSphere();
+    gl.uniform1i(shProgram.isSphere, false);
 
     // Second pass for right eye, drawing to blue+green components only
     gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, m4.multiply(modelViewProjection, translateRightEye));
@@ -91,6 +110,9 @@ function draw() {
     gl.colorMask(false, true, true, false); // setup only blue+green components
 
     surface.Draw();
+    gl.uniform1i(shProgram.isSphere, true);
+    sphere.DrawSphere();
+    gl.uniform1i(shProgram.isSphere, false);
 
     gl.colorMask(true, true, true, true); // reset all RGB components
 }
@@ -99,12 +121,14 @@ function draw() {
  * Draws a surface with webcam video texture
  */
 function drawWebCamera(projection) {
-    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, projection);
+    
+    gl.uniformMatrix4fv(shProgram.iProjectionMatrix, false, m4.zRotate(projection, deg2rad(90)));
     gl.uniform1i(shProgram.isCamera, true);
 
     gl.bindTexture(gl.TEXTURE_2D, webCamTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
     webCamSurface.DrawTriangles();
+    gl.uniform1i(shProgram.isCamera, false);
 }
 
 /**
@@ -113,7 +137,7 @@ function drawWebCamera(projection) {
 function drawDefault() {
     initParameters();
     updateDataAndDraw();
-    
+    resetAudio();
 }
 
 /**
@@ -122,6 +146,14 @@ function drawDefault() {
 function redraw() {
     setNewParameters();
     updateDataAndDraw();
+}
+
+/**
+ * Removes olds initialized audio.
+ */
+function resetAudio() {
+    document.getElementById('play-audio-btn').textContent = 'Play';
+    audioContext = undefined;
 }
 
 /**
@@ -141,7 +173,8 @@ function setNewParameters() {
  */
 function updateDataAndDraw() {
     stereoCam = new StereoCamera(parameters.convergence, parameters.eyeSeparation, 850 / 850, parameters.FOV, parameters.nearClippingDistance, parameters.farClippingDistance);
-    surface.BufferData(CreateSurfaceData());
+    surface.BufferDataWithTexture(CreateSurfaceData());
+    sphere.BufferData(CreateSphereData());
     draw();
 }
 
@@ -180,7 +213,6 @@ function CreateSurfaceData() {
             texturePoints.push(...uv1.transformVector(), ...uv2.transformVector(), ...uv3.transformVector(), ...uv4.transformVector());
         }
     }
-
     return new SurfaceData(vertexList, texturePoints);
 }
 
@@ -201,6 +233,54 @@ function map(val, max) {
 
 function mapBack(val, max) {
     return val * max;
+}
+
+function CreateSphereData()
+{
+    let radius = 1.2;
+    let vertexList = [];
+    const stepU = 10;
+    for (let u = 0; u <= 360; u += stepU) {
+        for(let v = 0; v <= 360; v += stepU) {
+            let alpha = deg2rad(u);
+            let beta = deg2rad(v);
+            let alpha2 = deg2rad(u + stepU);
+            let beta2 = deg2rad(v + stepU);
+            vertexList.push(sphereRotation.x +  (radius *  Math.cos(alpha) * Math.sin(beta)),sphereRotation.y +
+                (radius *  Math.sin(alpha) * Math.sin(beta)),sphereRotation.z + (radius *  Math.cos(beta)));
+            vertexList.push(sphereRotation.x +  (radius *  Math.cos(alpha2) * Math.sin(beta2)),sphereRotation.y +
+                (radius *  Math.sin(alpha2) * Math.sin(beta2)),sphereRotation.z + (radius *  Math.cos(beta2)));
+        }
+    }
+    return vertexList;
+}
+
+// function CreateSphereData()
+// {
+//     let radius = 0.5;
+//     let vertexList = [];
+//     const stepU = 10;
+//     for (let u = 0; u <= 360; u += stepU) {
+//         for(let v = 0; v <= 360; v += stepU) {
+//             let alpha = deg2rad(u);
+//             let beta = deg2rad(v);
+//             vertexList.push(sphereRotation.x +  (radius *  Math.cos(alpha) * Math.sin(beta)),sphereRotation.y +
+//                 (radius *  Math.sin(alpha) * Math.sin(beta)),sphereRotation.z + (radius *  Math.cos(beta)));
+
+//             let uv1 = calcUVPoint(u1, parameters.a, v1, maxAngle);
+//             let uv2 = calcUVPoint(u2, parameters.a, v2, maxAngle);
+//             let uv3 = calcUVPoint(u3, parameters.a, v3, maxAngle);
+//             let uv4 = calcUVPoint(u4, parameters.a, v4, maxAngle);
+
+//             texturePoints.push(...uv1.transformVector(), ...uv2.transformVector(), ...uv3.transformVector(), ...uv4.transformVector());
+//         }
+//     }
+//     return vertexList;
+//     return new SurfaceData(vertexList, texturePoints);
+// }
+
+function deg2rad(angle) {
+    return angle * Math.PI / 180;
 }
 
 function LoadSurfaceTexture() {
@@ -247,6 +327,9 @@ function initGL() {
     shProgram.iTMU                       = gl.getUniformLocation(prog, "tmu");
 
     shProgram.isCamera                   = gl.getUniformLocation(prog, "isCamera");
+    shProgram.isSphere                   = gl.getUniformLocation(prog, "isSphere");
+
+    shProgram.iColor                     = gl.getUniformLocation(prog, "color");
 
     surface = new Model('Surface of Revolution "Pear"');
     initParameters();
@@ -259,7 +342,7 @@ function initGL() {
     // A model for web cam video with negative parallax on background
     webCamSurface = new Model("Web Camera Surface");
     // Loading triangles data to draw surface on full canvas 
-    webCamSurface.BufferData(new SurfaceData(
+    webCamSurface.BufferDataWithTexture(new SurfaceData(
         [
             -20.0, 20.0, 0.0, 
             -20.0, -20.0, 0.0, 
@@ -271,11 +354,14 @@ function initGL() {
         [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1]
     ));
 
+    sphere = new Model('Sphere');
+    sphere.BufferData(CreateSphereData());
+
     gl.enable(gl.DEPTH_TEST);
 }
 
 function setBufferData(surface) {
-    surface.BufferData(CreateSurfaceData());
+    surface.BufferDataWithTexture(CreateSurfaceData());
 }
 
 
@@ -337,6 +423,23 @@ function init() {
         return;
     }
 
+    window.addEventListener('devicemotion', (event) => {
+        if(audioPanner) {
+            audioPosition.x += deg2rad(event.acceleration.x);
+            audioPosition.y += deg2rad(event.acceleration.y);
+            audioPosition.z += deg2rad(event.acceleration.z);
+
+            sphereRotation.x = 2 * Math.cos(audioPosition.y) * Math.cos(audioPosition.x);
+            sphereRotation.y = 2 * Math.sin(audioPosition.y);
+            sphereRotation.z = 2 * Math.cos(audioPosition.y) * Math.sin(audioPosition.z);
+
+            audioPanner.setPosition(sphereRotation.x, sphereRotation.y, sphereRotation.z);
+            audioPanner.setOrientation(0,0,0);
+
+            redraw();
+        }
+    })
+
     spaceball = new TrackballRotator(canvas, draw, 0);
 
     updateSurfaces();
@@ -362,4 +465,69 @@ function setupWebCam() {
 function updateSurfaces() {
     draw();
     window.requestAnimationFrame(updateSurfaces)
+}
+
+function playMusic() {
+    if (parameters.audioPlay) {
+        audioContext.suspend();
+        document.getElementById('play-audio-btn').textContent = 'Resume';
+    } else {
+        if (audioContext) {
+            audioContext.resume();
+        } else {
+            createAudio();
+        }
+        document.getElementById('play-audio-btn').textContent = 'Stop';
+    }
+    parameters.audioPlay = !parameters.audioPlay;
+}
+
+function createAudio()
+{
+    audioContext = new window.AudioContext();
+    createBandpassFilter();
+    createAudioPanner();
+    const request = new XMLHttpRequest();
+    audioSource = audioContext.createBufferSource();
+    request.open("GET", "https://raw.githubusercontent.com/twistedmisted/surf-rev-pear-vr/CGW/audio.mp3", true);
+    request.responseType = "arraybuffer";
+
+    request.onload = () => {
+        const audioData = request.response;
+
+        audioContext.decodeAudioData(audioData, (buffer) => {
+
+                audioSource.buffer = buffer;
+                audioSource.connect(audioFilter);
+                audioFilter.connect(audioPanner);
+                audioPanner.connect(audioContext.destination);
+                audioSource.loop = true;
+            }, (err) => {alert(err)}
+        );
+    };
+
+    request.send();
+    audioSource.start(0);
+}
+
+function createBandpassFilter()
+{
+    audioFilter = audioContext.createBiquadFilter();
+    audioFilter.type = "bandpass";
+    defaultFrequency =  audioFilter.frequency.value;
+    audioFilter.frequency.value = 1000;
+    audioFilter.gain.value = 10;
+}
+
+function createAudioPanner()
+{
+    audioPanner = audioContext.createPanner();
+    audioPanner.panningModel = "HRTF";
+    audioPanner.distanceModel = "inverse";
+    audioPanner.refDistance = 1;
+    audioPanner.maxDistance = 2000;
+    audioPanner.rolloffFactor = 1;
+    audioPanner.coneInnerAngle = 360;
+    audioPanner.coneOuterAngle = 0;
+    audioPanner.coneOuterGain = 0;
 }
