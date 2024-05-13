@@ -235,49 +235,27 @@ function mapBack(val, max) {
     return val * max;
 }
 
+/**
+ * Creates data for audio sphere
+ */
 function CreateSphereData()
 {
     let radius = 1.2;
     let vertexList = [];
     const stepU = 10;
-    for (let u = 0; u <= 360; u += stepU) {
-        for(let v = 0; v <= 360; v += stepU) {
-            let alpha = deg2rad(u);
-            let beta = deg2rad(v);
-            let alpha2 = deg2rad(u + stepU);
-            let beta2 = deg2rad(v + stepU);
-            vertexList.push(sphereRotation.x +  (radius *  Math.cos(alpha) * Math.sin(beta)),sphereRotation.y +
-                (radius *  Math.sin(alpha) * Math.sin(beta)),sphereRotation.z + (radius *  Math.cos(beta)));
-            vertexList.push(sphereRotation.x +  (radius *  Math.cos(alpha2) * Math.sin(beta2)),sphereRotation.y +
-                (radius *  Math.sin(alpha2) * Math.sin(beta2)),sphereRotation.z + (radius *  Math.cos(beta2)));
+    const maxDegree = 360;
+    for (let u = 0; u <= maxDegree; u += stepU) {
+        for(let v = 0; v <= maxDegree; v += stepU) {
+            let tempA = deg2rad(u);
+            let tempB = deg2rad(v);
+            let tempA2 = deg2rad(u + stepU);
+            let tempB2 = deg2rad(v + stepU);
+            vertexList.push(sphereRotation.x + (radius *  Math.cos(tempA) * Math.sin(tempB)), sphereRotation.y + (radius *  Math.sin(tempA) * Math.sin(tempB)), sphereRotation.z + (radius *  Math.cos(tempB)));
+            vertexList.push(sphereRotation.x + (radius *  Math.cos(tempA2) * Math.sin(tempB2)), sphereRotation.y + (radius *  Math.sin(tempA2) * Math.sin(tempB2)), sphereRotation.z + (radius *  Math.cos(tempB2)));
         }
     }
     return vertexList;
 }
-
-// function CreateSphereData()
-// {
-//     let radius = 0.5;
-//     let vertexList = [];
-//     const stepU = 10;
-//     for (let u = 0; u <= 360; u += stepU) {
-//         for(let v = 0; v <= 360; v += stepU) {
-//             let alpha = deg2rad(u);
-//             let beta = deg2rad(v);
-//             vertexList.push(sphereRotation.x +  (radius *  Math.cos(alpha) * Math.sin(beta)),sphereRotation.y +
-//                 (radius *  Math.sin(alpha) * Math.sin(beta)),sphereRotation.z + (radius *  Math.cos(beta)));
-
-//             let uv1 = calcUVPoint(u1, parameters.a, v1, maxAngle);
-//             let uv2 = calcUVPoint(u2, parameters.a, v2, maxAngle);
-//             let uv3 = calcUVPoint(u3, parameters.a, v3, maxAngle);
-//             let uv4 = calcUVPoint(u4, parameters.a, v4, maxAngle);
-
-//             texturePoints.push(...uv1.transformVector(), ...uv2.transformVector(), ...uv3.transformVector(), ...uv4.transformVector());
-//         }
-//     }
-//     return vertexList;
-//     return new SurfaceData(vertexList, texturePoints);
-// }
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -425,18 +403,7 @@ function init() {
 
     window.addEventListener('devicemotion', (event) => {
         if(audioPanner) {
-            audioPosition.x += deg2rad(event.acceleration.x);
-            audioPosition.y += deg2rad(event.acceleration.y);
-            audioPosition.z += deg2rad(event.acceleration.z);
-
-            sphereRotation.x = 2 * Math.cos(audioPosition.y) * Math.cos(audioPosition.x);
-            sphereRotation.y = 2 * Math.sin(audioPosition.y);
-            sphereRotation.z = 2 * Math.cos(audioPosition.y) * Math.sin(audioPosition.z);
-
-            audioPanner.setPosition(sphereRotation.x, sphereRotation.y, sphereRotation.z);
-            audioPanner.setOrientation(0,0,0);
-
-            redraw();
+            changeAudioPosition(event);
         }
     })
 
@@ -445,6 +412,27 @@ function init() {
     updateSurfaces();
 }
 
+/**
+ * Changes audio position due to event acceleration from Android
+ */
+function changeAudioPosition(event) {
+    audioPosition.x += deg2rad(event.acceleration.x);
+    audioPosition.y += deg2rad(event.acceleration.y);
+    audioPosition.z += deg2rad(event.acceleration.z);
+
+    sphereRotation.x = 2 * Math.cos(audioPosition.y) * Math.cos(audioPosition.x);
+    sphereRotation.y = 2 * Math.sin(audioPosition.y);
+    sphereRotation.z = 2 * Math.cos(audioPosition.y) * Math.sin(audioPosition.z);
+
+    audioPanner.setPosition(sphereRotation.x, sphereRotation.y, sphereRotation.z);
+    audioPanner.setOrientation(0,0,0);
+
+    redraw();
+}
+
+/**
+ * Sets up web cam from device
+ */
 function setupWebCam() {
     video = document.createElement('video');
     video.setAttribute('autoplay', true);
@@ -462,11 +450,17 @@ function setupWebCam() {
     LoadWebCamTexture();
 }
 
+/**
+ * Updates video from web cam
+ */
 function updateSurfaces() {
     draw();
     window.requestAnimationFrame(updateSurfaces)
 }
 
+/**
+ * Plays audio from .mp3 file on HTML page
+ */
 function playMusic() {
     if (parameters.audioPlay) {
         audioContext.suspend();
@@ -482,6 +476,9 @@ function playMusic() {
     parameters.audioPlay = !parameters.audioPlay;
 }
 
+/**
+ * Creates audio from .mp3 file to play on HTML page
+ */
 function createAudio()
 {
     audioContext = new window.AudioContext();
@@ -510,6 +507,9 @@ function createAudio()
     audioSource.start(0);
 }
 
+/**
+ * Sets up bandpass filter for audio
+ */
 function createBandpassFilter()
 {
     audioFilter = audioContext.createBiquadFilter();
@@ -519,6 +519,9 @@ function createBandpassFilter()
     audioFilter.gain.value = 10;
 }
 
+/**
+ * Creates audio panner
+ */
 function createAudioPanner()
 {
     audioPanner = audioContext.createPanner();
