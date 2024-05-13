@@ -417,7 +417,7 @@ function init() {
 
             redraw();
         }
-    })
+    });
 
     spaceball = new TrackballRotator(canvas, draw, 0);
     
@@ -499,8 +499,7 @@ function playMusic() {
 /**
  * Creates audio from .mp3 file to play on HTML page
  */
-function createAudio()
-{
+function createAudio() {
     audioContext = new window.AudioContext();
     audioSource = audioContext.createBufferSource();
     createBandpassFilter();
@@ -529,8 +528,7 @@ function createAudio()
 /**
  * Sets up bandpass filter for audio
  */
-function createBandpassFilter()
-{
+function createBandpassFilter() {
     audioFilter = audioContext.createBiquadFilter();
     audioFilter.type = "bandpass";
     audioFilter.frequency.value = 1000;
@@ -540,8 +538,7 @@ function createBandpassFilter()
 /**
  * Creates audio panner
  */
-function createAudioPanner()
-{
+function createAudioPanner() {
     audioPanner = audioContext.createPanner();
     audioPanner.panningModel = "HRTF";
     audioPanner.distanceModel = "inverse";
