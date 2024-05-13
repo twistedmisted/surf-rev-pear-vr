@@ -6,10 +6,8 @@ Visit vr-kpi.blogspot.com for more information
 
 ## Surface of Revolution "Pear"
 
-This PA is based on previous module repository [CGW](https://github.com/twistedmisted/surf-rev-pear/tree/CGW) branch.
-
-Example of surface with negative parallax and background surface (with webcam video texture) with zero parallax
-![gif-animation](PA_1_Example.gif)
+Example of working with audio in space.
+![video-animation](CGW_Result.mp4)
 
 
 ### Previous credit module VGGI repository: 
