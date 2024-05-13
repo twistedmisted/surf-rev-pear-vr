@@ -7,6 +7,7 @@ attribute vec2 texCoord;
 uniform mat4 ModelViewMatrix, ProjectionMatrix;
 
 uniform bool isCamera;
+uniform bool isSphere;
 
 varying vec2 texInterp;
 
@@ -35,6 +36,13 @@ varying vec2 texInterp;
 uniform sampler2D tmu;
 uniform float angleRad;
 
+uniform bool isSphere;
+uniform vec4 color;
+
 void main() {
+  if (isSphere) {
+    gl_FragColor = color;
+  } else {
     gl_FragColor = texture2D(tmu, texInterp);
+  }
 }`;

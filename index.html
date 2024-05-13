@@ -67,7 +67,11 @@
     </div>
     <div>
         <label for ="convergence">Convergence</label>
-        <input id="convergence" type="range" min="10" max="300" step="10" value="50" onchange="redraw()">
+        <input id="convergence" type="range" min="10" max="300" step="10" value="500" onchange="redraw()">
+    </div>
+    <div>
+        <label for ="useFilter">Use Filter</label>
+        <input id="useFilter" type="checkbox" checked/>
     </div>
     
     <div class="button">
@@ -76,6 +80,10 @@
 
     <div class="button">
         <button onclick="drawDefault()">Draw Default Surface</button>
+    </div>
+
+    <div class="button">
+        <button id="play-audio-btn" onclick="playMusic()">Play</button>
     </div>
 </div>
 </div>

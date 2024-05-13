@@ -13,6 +13,9 @@ function ShaderProgram(name, program) {
     this.iTMU = -1;
 
     this.isCamera = false;
+
+    this.iColor = -1;
+    this.isSphere = false;
     
     this.Use = function() {
         gl.useProgram(this.prog);
